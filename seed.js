@@ -8,9 +8,13 @@
 
 const mongoose = require('mongoose');
 const dotenv = require('dotenv');
+const dns = require('dns');
 const Admin = require('./models/Admin');
 
 dotenv.config();
+
+// Force Node.js to use Google DNS for SRV record resolution
+dns.setServers(['8.8.8.8', '8.8.4.4']);
 
 const seedAdmin = async () => {
   try {
