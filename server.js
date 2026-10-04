@@ -1,24 +1,25 @@
-const express = require('express');
-const cors = require('cors');
-const dotenv = require('dotenv');
-const connectDB = require('./config/db');
+// Load environment variables first — services read process.env when they are required
+require('dotenv').config();
 
-// Load environment variables
-dotenv.config();
+const express = require('express');
+const http = require('http');
+const cors = require('cors');
+const connectDB = require('./config/db');
+const socketService = require('./services/socketService');
 
 // Connect to MongoDB
 connectDB();
 
 const app = express();
+const server = http.createServer(app);
 
 // ─── Middleware ────────────────────────────────────────────────────────────────
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// CORS — allow your friend's frontend origin
 app.use(
   cors({
-    origin: process.env.CLIENT_URL || '*', // Set CLIENT_URL in .env for production
+    origin: process.env.CLIENT_URL || '*',
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization'],
     credentials: true,
@@ -27,16 +28,21 @@ app.use(
 
 // ─── Routes ───────────────────────────────────────────────────────────────────
 app.use('/api/auth', require('./routes/authRoutes'));
+app.use('/api/gps', require('./routes/gpsRoutes'));
 
 // ─── Health Check ─────────────────────────────────────────────────────────────
 app.get('/', (req, res) => {
   res.status(200).json({
     success: true,
-    message: '🚀 Admin Auth Backend is running!',
+    message: '🚀 Fleet Management & Traccar GPS Backend is running!',
     version: '1.0.0',
     endpoints: {
       login: 'POST /api/auth/login',
-      profile: 'GET /api/auth/me  (requires Bearer token)',
+      profile: 'GET /api/auth/me (requires Bearer token)',
+      gpsVehicles: 'GET /api/gps/vehicles',
+      gpsDevices: 'GET /api/gps/devices',
+      gpsAlerts: 'GET /api/gps/alerts',
+      gpsGeofences: 'GET /api/gps/geofences',
     },
   });
 });
@@ -58,9 +64,13 @@ app.use((err, req, res, next) => {
   });
 });
 
+// ─── Initialize Socket.IO & Traccar WS ─────────────────────────────────────────
+socketService.init(server);
+
 // ─── Start Server ──────────────────────────────────────────────────────────────
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => {
+server.listen(PORT, () => {
   console.log(`\n🚀 Server running in ${process.env.NODE_ENV || 'development'} mode on port ${PORT}`);
-  console.log(`📡 API Base URL: http://localhost:${PORT}/api\n`);
+  console.log(`📡 API Base URL: http://localhost:${PORT}/api`);
+  console.log(`⚡ WebSocket URL: ws://localhost:${PORT}\n`);
 });
